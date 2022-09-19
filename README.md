@@ -1,46 +1,68 @@
-<h1 align="center">Adaptive Weighting in Contextual Bandits</h1>
+This directory contains scripts to run experiments using synthetic data and public classification datasets on [OpenML](https://www.openml.org), 
+and make plots shown in the paper _Off-Policy Evaluation via Adaptive Weighting with Data from Contextual Bandits_.
 
-Models for paper _Off-Policy Evaluation via Adaptive Weighting with Data from Contextual Bandits_.
+## File description
+- `script_synthetic.py`: run simulations on synthetic data described in the paper, and save results in `./results/` computed by different weighting schemes.
+- `script_classification.py`: run simulations on classification data from OpenML, and save results in `./results/` computed by different weighting schemes.
+- `statistics_synthetic.ipynb`: make plots of performances on synthetic data shown in the paper using saved results in `./results/`.
+- `statistics_classification.ipynb`: make plots of performances on OpenML data shown in the paper using saved results in `./results/`.
+- `intro_example.ipynb`: simulation of Example 1 in the paper.
+- `plot_utils.py`: utility functions for making plots.
 
-<p align="center">
-  Table of contents </br>
-  <a href="#overview">Overview</a> •
-  <a href="#development-setup">Development Setup</a> •
-  <a href="#quickstart-with-model">Quickstart</a> 
-</p>
 
 
-# Overview
+## Reproducibility 
+To reproduce results on synthetic data shown in the paper, do
+1. Run DGP with signal: `python script_synthetic.py -s 1000 -n synthetic_signal --signal 0.5` to run experiments and save results in `./results/`.
+2. Run DGP without signal: `python script_synthetic.py -s 1000 -n synthetic_nosignal --signal 0.0` to run experiments and save results in `./results/`.
+3. Open `statistics_synthetic.ipynb`, follow the instructions in the notebook to generate plots based on the saved results in `./results/`. 
 
-*Note: For any questions, please file an issue.*
+To reproduce results on classification datasets shown in the paper, do
+1. `python script_classification.py -s 100 -f {NameOfDataset}` to run experiments and save results in `./results/`.
+2. Open `statistics_classification.ipynb`, follow the instructions in the notebook to generate plots based on the saved results in `./results/`. 
 
-Adaptive experimental designs can dramatically improve efficiency in randomized trials. But adaptivity also makes offline policy inference challenging. In the paper _Off-Policy Evaluation via Adaptive Weighting with Data from Contextual Bandits_, we propose a class of estimators that lead to asymptotically normal and consistent policy evaluation. This repo contains reproducible code for the results shown in the paper. 
 
-We organize the code into two directories:
-- [./adaptive](https://github.com/gsbDBI/contextual_bandits_evaluation/tree/main/adaptive) is a Python module for doing adaptive weighting developed in the paper.
+## Quick start for running simulations using synthetic data
+Load packages
+```python
+import os
+from adaptive.inference import analyze, aw_scores
+from adaptive.experiment import *
+from adaptive.ridge import *
+from adaptive.datagen import *
+from adaptive.saving import *
+```
+### 1. Collecting contextual bandits data
+```python
+K = 4 # Number of arms
+p = 3 # Number of features
+T = 7000 # Sample size
+batch_sizes = [200] + [100] * 68 # Batch sizes
+signal_strength = 0.5
+config = dict(T=T, K=K, p=p, noise_form='normal', noise_std=1, noise_scale=0.5, floor_start=1/K, 
+      bandit_model = 'RegionModel', floor_decay=0.8, dgp='synthetic_signal')
 
-- [./experiments](https://github.com/gsbDBI/contextual_bandits_evaluation/tree/main/experiments) contains python scripts to run experiments and make plots shown in the paper, including:
-   - collecting contextual bandits data with a Thompson sampling agent;
-   - doing off-line policy evaluation using collected data;
-   - saving results and making plots. 
-
-# Development setup
-R and Python are required. We recommend creating the following conda environment for computation.
-```bash
-conda create --name aw_contextual python=3.7
-conda activate aw_contextual
-source install.sh
+# Collect data from environment
+data_exp, mus = simple_tree_data(T=T, K=K, p=p, noise_std=1, 
+    split=0.5, signal_strength=signal_strength, noise_form='normal')
+xs, ys = data_exp['xs'], data_exp['ys']
+data = run_experiment(xs, ys, config, batch_sizes=batch_sizes)
+yobs, ws, probs = data['yobs'], data['ws'], data['probs']
 ```
 
-# Quickstart with model
-
-- To do adaptive weighting and reproduce results shown in the paper, please follow the instructions in [./experiments/README.md](https://github.com/gsbDBI/contextual_bandits_evaluation/blob/main/experiments/README.md).
-- For a quick start on one simulation using synthetic data of sample size 1000 , use
-```bash
-source activate aw_contextual
-cd ./experiments/
-python script_synthetic.py -T 1000 -s 1 -n test
+### 2. Evaluate optimal policy
+```python
+# Estimate muhat and gammahat
+muhat = ridge_muhat_lfo_pai(data_exp['xs'], ws, yobs, K, batch_sizes)
+gammahat = aw_scores(yobs=yobs, ws=ws, balwts=1 / collect(collect3(probs), ws),
+                     K=K, muhat=collect3(muhat))
+optimal_mtx = expand(np.ones(T), np.argmax(data_exp['muxs'], axis=1), K)
+analysis = analyze(
+                probs=probs,
+                gammahat=gammahat,
+                policy=optimal_mtx,
+                policy_value=0.5,
+            )
 ```
-Results will be saved in ./experiments/results/
 
 
