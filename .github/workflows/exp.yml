@@ -27,14 +27,14 @@ jobs:
       - run: pip install -r requirements.txt
 
       - id: signal
-        name: Python dependencies
+        name: signal
         uses: actions/setup-python@v2
         with:
           python-version: '3.8'
       - run: python script_synthetic.py -s 1 -n synthetic_signal --signal 0.5
 
       - id: no_signal
-        name: Python dependencies
+        name: no_signal
         uses: actions/setup-python@v2
         with:
           python-version: '3.8'
