@@ -10,8 +10,9 @@ on:
 
 
 jobs:
-  R-CMD-check:
+  python_simulations:
     runs-on: ubuntu-22.04
+    timeout-minutes: 900
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
@@ -37,14 +38,14 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.8'
-      - run: python script_synthetic.py -s 1 -n synthetic_signal --signal 0.5
+      - run: python script_synthetic.py -s 121 -n synthetic_signal --signal 0.5
 
       - id: no_signal
         name: no_signal
         uses: actions/setup-python@v2
         with:
           python-version: '3.8'
-      - run: python script_synthetic.py -s 1 -n synthetic_nosignal --signal 0.0
+      - run: python script_synthetic.py -s 121 -n synthetic_nosignal --signal 0.0
 
 
 
